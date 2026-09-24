@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>OBS用 待機画面(Now Loading) ジェネレーター</title>
+  <style>
+    body { font-family: sans-serif; background: #222; color: #eee; padding: 20px; margin: 0; }
+    .main-layout { display: flex; gap: 25px; max-width: 1450px; margin: 0 auto; align-items: flex-start; }
+    
+    /* 左側：プレビューエリア（追従） */
+    .left-pane { flex: 1.1; position: sticky; top: 20px; }
+    
+    /* 右側：設定エリア */
+    .right-pane { flex: 1.3; background: #333; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.8); }
+
+    h2 { margin-top: 0; text-align: center; border-bottom: 2px solid #555; padding-bottom: 10px; color: #fff; }
+    
+    .section { background: #444; margin-bottom: 15px; padding: 15px; border-radius: 6px; border-left: 4px solid #007bff; }
+    .section-title { font-weight: bold; font-size: 1.1rem; margin-bottom: 15px; color: #66b0ff; border-bottom: 1px solid #555; padding-bottom: 5px; }
+    
+    label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; color:#ddd; }
+    input[type="text"], input[type="number"], select, textarea { width: 100%; padding: 8px; margin-bottom: 10px; background: #222; color: #fff; border: 1px solid #666; border-radius: 4px; box-sizing: border-box; }
+    input[type="file"] { width: 100%; padding: 8px; margin-bottom: 10px; background: #222; color: #fff; border: 1px solid #666; border-radius: 4px; box-sizing: border-box; }
+    input[type="color"] { width: 100%; height: 38px; margin-bottom: 10px; cursor: pointer; background: #222; border: 1px solid #666; border-radius: 4px; padding: 2px; }
+    input[type="range"] { width: 100%; margin-bottom: 10px; cursor: pointer; accent-color: #007bff; }
+    
+    .flex-row { display: flex; gap: 10px; align-items: center; }
+    .flex-row > div { flex: 1; min-width: 0; }
+
+    .checkbox-wrap { display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 10px; font-size: 0.95rem; }
+    .checkbox-wrap input { width: 18px; height: 18px; cursor: pointer; }
+
+    .generate-btn { width: 100%; background: #28a745; color: #fff; border: none; cursor: pointer; font-size: 1.2rem; font-weight: bold; margin-top: 15px; padding: 15px; border-radius: 6px; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+    .generate-btn:hover { background: #218838; transform: translateY(2px); box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+    .add-btn { background: #007bff; color: #fff; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; font-size: 1rem; margin-bottom: 10px;}
+    .add-btn:hover { background: #0056b3; }
+    .del-btn { background: #dc3545; color: #fff; border: none; padding: 8px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
+    .preset-btn { background: #6c757d; color: #fff; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .preset-btn:hover { background: #5a6268; }
+
+    .obs-guide { background: #2a2a2a; border-left: 4px solid #f1c40f; padding: 15px; margin-top: 15px; border-radius: 4px; line-height: 1.6; }
+    .obs-guide h4 { margin: 0 0 10px 0; color: #f1c40f; }
+    .obs-guide ol { margin: 0; padding-left: 20px; font-size: 0.9rem; }
+
+    .note { font-size: 0.8rem; color: #aaa; margin-bottom: 10px; display: block; }
+    
+    #preview-container { background: #222; padding: 15px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.8); border-left: 4px solid #f1c40f; margin-bottom: 15px; }
+    #preview-container .section-title { color: #f1c40f; border-bottom: 1px solid #555; margin-bottom: 10px; font-size: 1.2rem; }
+    iframe#preview-frame { width: 100%; aspect-ratio: 16/9; border: 2px solid #555; border-radius: 4px; background: #000; display: block; }
+
+    .custom-item-box { border: 1px dashed #777; padding: 15px; margin-bottom: 15px; border-radius: 6px; background: #3a3a3a; position: relative; }
+    .slider-val-label { font-size: 0.8rem; color: #f1c40f; display: inline-block; width: 45px; text-align: right; }
+    .sub-panel { background: #2a2a2a; padding: 10px 15px; border-radius: 4px; margin-bottom: 10px; border: 1px solid #555; }
+
+    @media (max-width: 1000px) {
+      .main-layout { flex-direction: column; }
+      .left-pane { position: static; width: 100%; }
+      .right-pane { width: 100%; box-sizing: border-box; }
+    }
+  </style>
+</head>
+<body>
+
+<h2 style="max-width: 1450px; margin: 0 auto 20px auto; text-align: left;">🔄 OBS用 待機画面(Now Loading) ジェネレーター</h2>
+
+<div class="main-layout">
+  
+  <!-- 左側：プレビュー＆出力ボタン -->
+  <div class="left-pane">
+    <div id="preview-container">
+      <div class="section-title">📺 リアルタイムプレビュー (1920x1080)</div>
+      <iframe id="preview-frame"></iframe>
+    </div>
+    
+    <button type="button" class="generate-btn" id="generate-btn">📦 OBS用 HTMLファイルを保存</button>
+
+    <div class="obs-guide">
+      <h4>📌 OBSへの導入方法</h4>
+      <ol>
+        <li>保存された <code>now_loading.html</code> を確認します。</li>
+        <li>OBSの「＋」から<b>「ブラウザ」</b>を追加。</li>
+        <li><b>「ローカルファイル」</b>にチェックを入れHTMLを選択。</li>
+        <li><b>幅 <code>1920</code>、高さ <code>1080</code></b> にして「OK」で完了！</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- 右側：設定パネル -->
+  <div class="right-pane" id="settings-panel">
+    
+    <!-- 0. プリセット保存・切替機能 -->
+    <div class="section" style="border-left-color: #28a745;">
+      <div class="section-title" style="color: #28a745;">0. 設定プリセット管理</div>
+      <div class="flex-row">
+        <div>
+          <label>保存済みプリセット</label>
+          <select id="preset-list"><option value="">-- 選択してください --</option></select>
+        </div>
+        <div style="padding-top:20px;">
+          <button type="button" class="preset-btn" id="load-preset-btn" style="background:#007bff;">読み込み</button>
+          <button type="button" class="preset-btn" id="del-preset-btn" style="background:#dc3545;">削除</button>
+        </div>
+      </div>
+      <div class="flex-row" style="margin-top:10px;">
+        <div>
+          <label>新しいプリセット名</label>
+          <input type="text" id="new-preset-name" placeholder="例: 雑談枠セット">
+        </div>
+        <div style="padding-top:20px;">
+          <button type="button" class="preset-btn" id="save-preset-btn" style="background:#28a745;">現在の設定を保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1. 背景設定 -->
+    <div class="section">
+      <div class="section-title">1. 基本の背景色設定</div>
+      <div class="flex-row">
+        <div>
+          <label>背景タイプ</label>
+          <select id="bg-type" class="auto-save">
+            <option value="solid">単色</option>
+            <option value="gradient">グラデーション</option>
+          </select>
+        </div>
+        <div id="bg-color1-wrap">
+          <label>カラー1</label>
+          <input type="color" id="bg-color1" value="#1a1a2e" class="auto-save">
+        </div>
+        <div id="bg-color2-wrap">
+          <label>カラー2 (グラデ用)</label>
+          <input type="color" id="bg-color2" value="#16213e" class="auto-save">
+        </div>
+      </div>
+      <div id="bg-grad-options" style="display:none;">
+        <div class="flex-row">
+          <div>
+            <label>グラデーション方向</label>
+            <select id="bg-gradient-dir" class="auto-save">
+              <option value="to bottom">上から下</option>
+              <option value="to top">下から上</option>
+              <option value="to right">左から右</option>
+              <option value="to left">右から左</option>
+              <option value="to bottom right">斜め</option>
+            </select>
+          </div>
+          <div>
+            <label>カラー1の割合 <span id="val-bg-pos" class="slider-val-label">50%</span></label>
+            <input type="range" id="bg-grad-pos" min="0" max="100" value="50" class="auto-save" oninput="document.getElementById('val-bg-pos').textContent = this.value + '%'">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1-2. 背景画像/スライドショー設定 -->
+    <div class="section">
+      <div class="section-title">1-2. 背景画像 / 背景スライドショー</div>
+      <span class="note">画像を選択すると、基本背景色の上に画像が重なります（複数選択でスライドショー化）。</span>
+      <input type="file" id="bg-image" accept="image/*" multiple>
+      <div class="flex-row">
+        <div>
+          <label>画像の表示サイズ</label>
+          <select id="bg-image-size" class="auto-save">
+            <option value="cover">画面いっぱいに埋める (見切れあり)</option>
+            <option value="contain">全体を収める (見切れなし・余白は基本色)</option>
+          </select>
+        </div>
+        <div>
+          <label>複数選択時の切替(秒)</label>
+          <input type="number" id="bg-slide-speed" value="6" class="auto-save">
+        </div>
+      </div>
+      
+      <div class="sub-panel" style="margin-top:10px;">
+        <label class="checkbox-wrap" style="margin-bottom:5px;">
+          <input type="checkbox" id="bg-filter" class="auto-save" checked> 画像の上に暗幕（フィルター）を重ねて視認性を上げる
+        </label>
+        <div id="bg-filter-options">
+          <label>暗幕の濃さ <span id="val-bg-filter-op" class="slider-val-label">50%</span></label>
+          <input type="range" id="bg-filter-opacity" min="0" max="100" value="50" class="auto-save" oninput="document.getElementById('val-bg-filter-op').textContent = this.value + '%'">
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. メインテキスト設定 -->
+    <div class="section">
+      <div class="section-title">2. メインテキスト (Now Loading等)</div>
+      <label>表示テキスト</label>
+      <input type="text" id="main-text" value="NOW LOADING..." class="auto-save">
+      
+      <div class="flex-row">
+        <div>
+          <label>X座標 (横位置) <span id="val-main-x" class="slider-val-label">50%</span></label>
+          <input type="range" id="main-x" min="0" max="100" value="50" class="auto-save" oninput="document.getElementById('val-main-x').textContent = this.value + '%'">
+        </div>
+        <div>
+          <label>Y座標 (縦位置) <span id="val-main-y" class="slider-val-label">45%</span></label>
+          <input type="range" id="main-y" min="0" max="100" value="45" class="auto-save" oninput="document.getElementById('val-main-y').textContent = this.value + '%'">
+        </div>
+      </div>
+
+      <div class="flex-row">
+        <div>
+          <label>フォント指定</label>
+          <select id="main-font-preset" class="auto-save font-preset" data-target="main-font-custom">
+            <option value="'Meiryo', sans-serif">メイリオ (Meiryo)</option>
+            <option value="'Yu Gothic', '游ゴシック', sans-serif">游ゴシック (Yu Gothic)</option>
+            <option value="'MS PGothic', sans-serif">MS Pゴシック</option>
+            <option value="'UD デジタル 教科書体 NP-R', sans-serif">UD デジタル 教科書体</option>
+            <option value="custom">ローカルフォント名を入力...</option>
+          </select>
+          <input type="text" id="main-font-custom" placeholder="例: Impact" style="display:none;" class="auto-save">
+        </div>
+        <div>
+          <label>出現アニメ</label>
+          <select id="main-animation" class="auto-save">
+            <option value="wave">ウェーブ (波打ち)</option>
+            <option value="fade">フェードイン (出現)</option>
+            <option value="slideup">スライドアップ</option>
+            <option value="typewriter">タイプライター</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex-row">
+        <div>
+          <label>文字サイズ</label>
+          <input type="number" id="main-size" value="80" class="auto-save">
+        </div>
+        <div>
+          <label>文字色</label>
+          <input type="color" id="main-color" value="#ffffff" class="auto-save">
+        </div>
+        <div style="padding-top:20px;">
+          <label class="checkbox-wrap"><input type="checkbox" id="main-bold" class="auto-save" checked> <b>太字</b></label>
+        </div>
+      </div>
+      <label class="checkbox-wrap" style="margin-top:10px;"><input type="checkbox" id="main-shadow" class="auto-save" checked> 文字に影(ドロップシャドウ)をつける</label>
+      
+      <div class="sub-panel">
+        <label class="checkbox-wrap" style="margin-bottom:0;"><input type="checkbox" id="main-outline" class="auto-save"> 袋文字(フチ取り)にする</label>
+        <div id="main-outline-options" class="flex-row" style="display:none; margin-top:10px;">
+          <div>
+            <label>フチの太さ <span id="val-mo-size" class="slider-val-label">3px</span></label>
+            <input type="range" id="main-outline-size" min="1" max="15" value="3" class="auto-save" oninput="document.getElementById('val-mo-size').textContent = this.value + 'px'">
+          </div>
+          <div><label>フチの色</label><input type="color" id="main-outline-color" value="#000000" class="auto-save"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. プログレス / ロードアイコン -->
+    <div class="section">
+      <div class="section-title">3. ロードアイコン＆プログレスバー</div>
+      <label class="checkbox-wrap"><input type="checkbox" id="icon-show" class="auto-save" checked> ロードアイコンを表示する</label>
+      
+      <div class="flex-row">
+        <div>
+          <label>X座標 (横位置) <span id="val-icon-x" class="slider-val-label">50%</span></label>
+          <input type="range" id="icon-x" min="0" max="100" value="50" class="auto-save" oninput="document.getElementById('val-icon-x').textContent = this.value + '%'">
+        </div>
+        <div>
+          <label>Y座標 (縦位置) <span id="val-icon-y" class="slider-val-label">55%</span></label>
+          <input type="range" id="icon-y" min="0" max="100" value="55" class="auto-save" oninput="document.getElementById('val-icon-y').textContent = this.value + '%'">
+        </div>
+      </div>
+
+      <div class="flex-row">
+        <div>
+          <label>アイコン種類</label>
+          <select id="icon-type" class="auto-save">
+            <option value="fill-bar">空のバーが埋まる (リセット型)</option>
+            <option value="bar">横バー (エンドレス)</option>
+            <option value="spinner">丸いスピナー</option>
+            <option value="dots">3点ドット</option>
+            <option value="wave">波型ドット</option>
+          </select>
+        </div>
+        <div>
+          <label>アイコンの色</label>
+          <input type="color" id="icon-color" value="#00d2ff" class="auto-save">
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <label>アイコンのサイズ(倍率) <span id="val-icon-size" class="slider-val-label">1.0倍</span></label>
+        <input type="range" id="icon-size" min="0.5" max="3.0" step="0.1" value="1.0" class="auto-save" oninput="document.getElementById('val-icon-size').textContent = this.value + '倍'">
+      </div>
+    </div>
+
+    <!-- 4. 四季アニメーション -->
+    <div class="section">
+      <div class="section-title">4. 背景の季節エフェクト (パーティクル)</div>
+      <select id="particle-type" class="auto-save">
+        <option value="none">なし</option>
+        <option value="sakura">🌸 春：サクラ（ピンクの花びら）</option>
+        <option value="natsutsubaki">🍃 夏：夏椿・新緑（ふんわり緑）</option>
+        <option value="kinmokusei">🍂 秋：キンモクセイ（オレンジの小花）</option>
+        <option value="snow">❄️ 冬：雪の結晶（ゆっくり降る雪）</option>
+        <option value="cosmos">🌺 秋：コスモス風</option>
+      </select>
+    </div>
+
+    <!-- 5. 任意配置 スライドショー機能 -->
+    <div class="section">
+      <div class="section-title">5. 任意配置 画像/スライドショー (最大10枚)</div>
+      <label class="checkbox-wrap"><input type="checkbox" id="ss-show" class="auto-save"> スライドショーを表示する</label>
+      <div id="ss-settings" style="display:none;" class="sub-panel">
+        <label>画像ファイルを選択 (複数・縦横混在・GIF可)</label>
+        <input type="file" id="ss-files" accept="image/*" multiple>
+        <div class="flex-row">
+          <div><label>枠のサイズ(最大幅/高) <span id="val-ss-size" class="slider-val-label">600px</span></label><input type="range" id="ss-size" min="100" max="1920" value="600" class="auto-save" oninput="document.getElementById('val-ss-size').textContent = this.value + 'px'"></div>
+          <div><label>切替(秒)</label><input type="number" id="ss-speed" value="4" class="auto-save"></div>
+        </div>
+        <div class="flex-row">
+          <div><label>X座標 <span id="val-ss-x" class="slider-val-label">20%</span></label><input type="range" id="ss-x" min="0" max="100" value="20" class="auto-save" oninput="document.getElementById('val-ss-x').textContent = this.value + '%'"></div>
+          <div><label>Y座標 <span id="val-ss-y" class="slider-val-label">50%</span></label><input type="range" id="ss-y" min="0" max="100" value="50" class="auto-save" oninput="document.getElementById('val-ss-y').textContent = this.value + '%'"></div>
+        </div>
+        <span class="note">※設定した枠内に収まるように画像全体が表示されます（見切れ防止）。</span>
+      </div>
+    </div>
+
+    <!-- 6. カスタムテキスト追加（自由配置） -->
+    <div class="section">
+      <div class="section-title">6. カスタムテキスト / お品書き (自由配置)</div>
+      <span class="note">左上基点配置。テキストの「左寄せ・中央寄せ・右寄せ」も選べます。</span>
+      
+      <button type="button" class="add-btn" id="add-text-btn">＋ 新しいテキストエリアを追加</button>
+      <div id="custom-text-list"></div>
+    </div>
+
+    <!-- 7. 任意配置 スタンプ/画像 (アニメ対応) -->
+    <div class="section">
+      <div class="section-title">7. 任意配置 スタンプ / 画像・GIF (自由配置)</div>
+      <span class="note">立ち絵やロゴを好きな場所に配置できます。アニメーションも指定可能！</span>
+      
+      <button type="button" class="add-btn" id="add-media-btn" style="background:#17a2b8;">＋ スタンプ・画像を追加</button>
+      <div id="custom-media-list"></div>
+    </div>
+
+    <!-- 8. ランダムTips -->
+    <div class="section" style="margin-bottom: 0;">
+      <div class="section-title">8. ランダムTips (定期的に切り替わる一言)</div>
+      <label class="checkbox-wrap"><input type="checkbox" id="tips-show" class="auto-save" checked> Tipsを表示する (画面下部中央)</label>
+      <textarea id="tips-text" rows="4" class="auto-save">※プレイ時は部屋を明るくして画面から離れてください。
+※お茶でも飲んでリラックスしてお待ちください。
+※初見さん、コメント大歓迎です！</textarea>
+      
+      <div class="flex-row">
+        <div>
+          <label>フォント指定</label>
+          <select id="tips-font-preset" class="auto-save font-preset" data-target="tips-font-custom">
+            <option value="'Meiryo', sans-serif">メイリオ (Meiryo)</option>
+            <option value="'Yu Gothic', '游ゴシック', sans-serif">游ゴシック (Yu Gothic)</option>
+            <option value="'MS PGothic', sans-serif">MS Pゴシック</option>
+            <option value="'UD デジタル 教科書体 NP-R', sans-serif">UD デジタル 教科書体</option>
+            <option value="custom">ローカルフォント名を入力...</option>
+          </select>
+          <input type="text" id="tips-font-custom" placeholder="フォント名" style="display:none;" class="auto-save">
+        </div>
+        <div>
+          <label>文字サイズ</label>
+          <input type="number" id="tips-size" value="28" class="auto-save">
+        </div>
+      </div>
+      <div class="flex-row">
+        <div><label>文字色</label><input type="color" id="tips-color" value="#ffffff" class="auto-save"></div>
+        <div style="padding-top:20px;">
+          <label class="checkbox-wrap"><input type="checkbox" id="tips-bold" class="auto-save" checked> <b>太字</b></label>
+        </div>
+        <div style="padding-top:20px;">
+          <label class="checkbox-wrap"><input type="checkbox" id="tips-shadow" class="auto-save" checked> 影</label>
+        </div>
+      </div>
+      <div class="sub-panel">
+        <label class="checkbox-wrap" style="margin-bottom:0;"><input type="checkbox" id="tips-outline" class="auto-save"> 袋文字(フチ取り)にする</label>
+        <div id="tips-outline-options" class="flex-row" style="display:none; margin-top:10px;">
+          <div><label>フチ太さ <span id="val-tips-o-size" class="slider-val-label">2px</span></label><input type="range" id="tips-outline-size" min="1" max="10" value="2" class="auto-save" oninput="document.getElementById('val-tips-o-size').textContent = this.value + 'px'"></div>
+          <div><label>フチ色</label><input type="color" id="tips-outline-color" value="#000000" class="auto-save"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// --- UI制御関連 ---
+document.querySelectorAll('.font-preset').forEach(sel => {
+  sel.addEventListener('change', (e) => {
+    const targetId = e.target.getAttribute('data-target');
+    const targetInput = document.getElementById(targetId);
+    targetInput.style.display = e.target.value === 'custom' ? 'block' : 'none';
+  });
+});
+
+document.getElementById('bg-type').addEventListener('change', (e) => {
+  const val = e.target.value;
+  document.getElementById('bg-grad-options').style.display = (val === 'gradient') ? 'block' : 'none';
+  document.getElementById('bg-color2-wrap').style.display = (val === 'gradient') ? 'block' : 'none';
+});
+
+document.getElementById('bg-filter').addEventListener('change', (e) => {
+  document.getElementById('bg-filter-options').style.display = e.target.checked ? 'block' : 'none';
+});
+
+document.getElementById('main-outline').addEventListener('change', (e) => {
+  document.getElementById('main-outline-options').style.display = e.target.checked ? 'flex' : 'none';
+});
+
+document.getElementById('tips-outline').addEventListener('change', (e) => {
+  document.getElementById('tips-outline-options').style.display = e.target.checked ? 'flex' : 'none';
+});
+
+document.getElementById('ss-show').addEventListener('change', (e) => {
+  document.getElementById('ss-settings').style.display = e.target.checked ? 'block' : 'none';
+});
+
+function getFontString(prefix) {
+  const preset = document.getElementById(`${prefix}-font-preset`).value;
+  if (preset === 'custom') {
+    const custom = document.getElementById(`${prefix}-font-custom`).value;
+    return custom ? `'${custom}', sans-serif` : 'sans-serif';
+  }
+  return preset;
+}
+
+function getBase64(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) return resolve(null);
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+    reader.readAsDataURL(file);
+  });
+}
+
+let cachedBgBase64 = [];
+let cachedSlideshowBase64 = [];
+
+document.getElementById('bg-image').addEventListener('change', async (e) => {
+  cachedBgBase64 = [];
+  const files = Array.from(e.target.files).slice(0, 10);
+  for (const f of files) { cachedBgBase64.push(await getBase64(f)); }
+  updatePreview();
+});
+
+document.getElementById('ss-files').addEventListener('change', async (e) => {
+  cachedSlideshowBase64 = [];
+  const files = Array.from(e.target.files).slice(0, 10);
+  for (const f of files) { cachedSlideshowBase64.push(await getBase64(f)); }
+  updatePreview();
+});
+
+// --- カスタムテキスト管理 ---
+let customTextId = 0;
+function renderCustomTextUI(data) {
+  const id = customTextId++;
+  const div = document.createElement('div');
+  div.className = 'custom-item-box';
+  div.id = `ct-box-${id}`;
+  
+  let presetVal = data ? data.fontPreset : "'Meiryo', sans-serif";
+  let customVal = data ? data.fontCustom : "";
+  let alignVal = data ? data.align : "left";
+  
+  div.innerHTML = `
+    <textarea class="ct-val" rows="3" placeholder="表示する文字">${data ? data.text : 'お品書き\n・雑談\n・ゲーム'}</textarea>
+    <div class="flex-row">
+      <div>X座標 <span id="val-ct-x-${id}" class="slider-val-label">${data ? data.x : 5}%</span><br><input type="range" class="ct-x" min="0" max="100" value="${data ? data.x : 5}" oninput="document.getElementById('val-ct-x-${id}').textContent = this.value + '%'"></div>
+      <div>Y座標 <span id="val-ct-y-${id}" class="slider-val-label">${data ? data.y : 5}%</span><br><input type="range" class="ct-y" min="0" max="100" value="${data ? data.y : 5}" oninput="document.getElementById('val-ct-y-${id}').textContent = this.value + '%'"></div>
+      <div>サイズ <span id="val-ct-s-${id}" class="slider-val-label">${data ? data.size : 36}px</span><br><input type="range" class="ct-size" min="10" max="200" value="${data ? data.size : 36}" oninput="document.getElementById('val-ct-s-${id}').textContent = this.value + 'px'"></div>
+    </div>
+    <div class="flex-row" style="margin-top:10px;">
+      <div>
+        <label style="font-size:0.8rem;">フォント</label>
+        <select class="ct-font-preset">
+          <option value="'Meiryo', sans-serif" ${presetVal==="'Meiryo', sans-serif"?'selected':''}>メイリオ</option>
+          <option value="'Yu Gothic', '游ゴシック', sans-serif" ${presetVal==="'Yu Gothic', '游ゴシック', sans-serif"?'selected':''}>游ゴシック</option>
+          <option value="'MS PGothic', sans-serif" ${presetVal==="'MS PGothic', sans-serif"?'selected':''}>MS Pゴシック</option>
+          <option value="'UD デジタル 教科書体 NP-R', sans-serif" ${presetVal==="'UD デジタル 教科書体 NP-R', sans-serif"?'selected':''}>UD デジタル</option>
+          <option value="custom" ${presetVal==="custom"?'selected':''}>カスタム</option>
+        </select>
+        <input type="text" class="ct-font-custom" placeholder="フォント名" value="${customVal}" style="display:${presetVal==='custom'?'block':'none'}; margin-top:5px;">
+      </div>
+      <div>
+        <label style="font-size:0.8rem;">文字配置</label>
+        <select class="ct-align">
+          <option value="left" ${alignVal==='left'?'selected':''}>左寄せ</option>
+          <option value="center" ${alignVal==='center'?'selected':''}>中央寄せ</option>
+          <option value="right" ${alignVal==='right'?'selected':''}>右寄せ</option>
+        </select>
+      </div>
+      <div><label style="font-size:0.8rem;">文字色</label><input type="color" class="ct-color" value="${data ? data.color : '#ffffff'}"></div>
+    </div>
+    <div class="flex-row" style="margin-top:5px;">
+      <div>
+        <label class="checkbox-wrap"><input type="checkbox" class="ct-bold" ${(!data || data.bold) ? 'checked' : ''}> 太字</label>
+        <label class="checkbox-wrap"><input type="checkbox" class="ct-shadow" ${(!data || data.shadow) ? 'checked' : ''}> 影</label>
+      </div>
+    </div>
+    <div class="sub-panel flex-row">
+      <div style="flex:0.5;"><label class="checkbox-wrap"><input type="checkbox" class="ct-outline" ${(data && data.outline) ? 'checked' : ''}> 袋文字</label></div>
+      <div style="flex:1;"><label style="font-size:0.8rem;">太さ <span id="val-ct-os-${id}" class="slider-val-label">${data ? data.outlineSize : 3}px</span></label><input type="range" class="ct-outline-size" min="1" max="15" value="${data ? data.outlineSize : 3}" oninput="document.getElementById('val-ct-os-${id}').textContent = this.value + 'px'"></div>
+      <div style="flex:1;"><label style="font-size:0.8rem;">色</label><input type="color" class="ct-outline-color" value="${data ? data.outlineColor : '#000000'}"></div>
+    </div>
+    <div style="text-align:right;"><button type="button" class="del-btn">🗑️ このテキストを削除</button></div>
+  `;
+  
+  div.querySelector('.ct-font-preset').addEventListener('change', (e) => {
+    div.querySelector('.ct-font-custom').style.display = e.target.value === 'custom' ? 'block' : 'none';
+  });
+
+  div.querySelectorAll('input, textarea, select').forEach(inp => {
+    inp.addEventListener('input', () => { saveCustomTexts(); updatePreview(); });
+    inp.addEventListener('change', () => { saveCustomTexts(); updatePreview(); });
+  });
+  div.querySelector('.del-btn').addEventListener('click', () => {
+    div.remove();
+    saveCustomTexts();
+    updatePreview();
+  });
+
+  document.getElementById('custom-text-list').appendChild(div);
+}
+
+document.getElementById('add-text-btn').addEventListener('click', () => {
+  renderCustomTextUI(null);
+  saveCustomTexts();
+  updatePreview();
+});
+
+function saveCustomTexts() {
+  const boxes = document.querySelectorAll('.custom-item-box');
+  const arr = [];
+  boxes.forEach(box => {
+    const valText = box.querySelector('.ct-val');
+    if (!valText) return; 
+    arr.push({
+      text: valText.value,
+      x: box.querySelector('.ct-x').value,
+      y: box.querySelector('.ct-y').value,
+      size: box.querySelector('.ct-size').value,
+      fontPreset: box.querySelector('.ct-font-preset').value,
+      fontCustom: box.querySelector('.ct-font-custom').value,
+      align: box.querySelector('.ct-align').value,
+      color: box.querySelector('.ct-color').value,
+      bold: box.querySelector('.ct-bold').checked,
+      shadow: box.querySelector('.ct-shadow').checked,
+      outline: box.querySelector('.ct-outline').checked,
+      outlineSize: box.querySelector('.ct-outline-size').value,
+      outlineColor: box.querySelector('.ct-outline-color').value
+    });
+  });
+  localStorage.setItem('nl_gen_custom_texts', JSON.stringify(arr));
+}
+
+function loadCustomTexts() {
+  const saved = localStorage.getItem('nl_gen_custom_texts');
+  if (saved) {
+    const arr = JSON.parse(saved);
+    arr.forEach(item => renderCustomTextUI(item));
+  }
+}
+
+// --- カスタムメディア（スタンプ・画像）管理 ---
+let customMediaId = 0;
+function renderCustomMediaUI(data) {
+  const id = customMediaId++;
+  const div = document.createElement('div');
+  div.className = 'custom-item-box';
+  div.id = `cm-box-${id}`;
+  
+  let base64Val = data ? data.base64 : "";
+  let animVal = data ? data.animation : "none";
+  
+  div.innerHTML = `
+    <div class="flex-row">
+      <div style="flex: 2;">
+        <label>画像 / GIF ファイル</label>
+        <input type="file" class="cm-file" accept="image/*">
+        ${base64Val ? `<span style="font-size:0.8rem; color:#28a745; display:block; margin-top:-5px;">✓ 画像セット済み</span>` : ''}
+      </div>
+      <div style="flex: 1;">
+        <label>アニメーション</label>
+        <select class="cm-anim">
+          <option value="none" ${animVal==='none'?'selected':''}>なし</option>
+          <option value="float" ${animVal==='float'?'selected':''}>ふわふわ (上下)</option>
+          <option value="swing" ${animVal==='swing'?'selected':''}>ゆらゆら (揺れ)</option>
+          <option value="spin" ${animVal==='spin'?'selected':''}>くるくる (回転)</option>
+          <option value="pulse" ${animVal==='pulse'?'selected':''}>どきどき (拡縮)</option>
+        </select>
+      </div>
+    </div>
+    <div class="flex-row" style="margin-top:10px;">
+      <div>X座標(中央基準) <span id="val-cm-x-${id}" class="slider-val-label">${data ? data.x : 50}%</span><br><input type="range" class="cm-x" min="0" max="100" value="${data ? data.x : 50}" oninput="document.getElementById('val-cm-x-${id}').textContent = this.value + '%'"></div>
+      <div>Y座標(中央基準) <span id="val-cm-y-${id}" class="slider-val-label">${data ? data.y : 50}%</span><br><input type="range" class="cm-y" min="0" max="100" value="${data ? data.y : 50}" oninput="document.getElementById('val-cm-y-${id}').textContent = this.value + '%'"></div>
+      <div>横幅(px) <span id="val-cm-w-${id}" class="slider-val-label">${data ? data.width : 300}px</span><br><input type="range" class="cm-width" min="50" max="1920" value="${data ? data.width : 300}" oninput="document.getElementById('val-cm-w-${id}').textContent = this.value + 'px'"></div>
+    </div>
+    <div style="text-align:right; margin-top:10px;"><button type="button" class="del-btn">🗑️ このスタンプを削除</button></div>
+  `;
+
+  let currentBase64 = base64Val;
+  div.querySelector('.cm-file').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      currentBase64 = await getBase64(file);
+      div.dataset.base64 = currentBase64;
+      saveCustomMedia();
+      updatePreview();
+    }
+  });
+
+  if (base64Val) { div.dataset.base64 = base64Val; }
+
+  div.querySelectorAll('input, select').forEach(inp => {
+    inp.addEventListener('input', () => { saveCustomMedia(); updatePreview(); });
+    inp.addEventListener('change', () => { saveCustomMedia(); updatePreview(); });
+  });
+
+  div.querySelector('.del-btn').addEventListener('click', () => {
+    div.remove();
+    saveCustomMedia();
+    updatePreview();
+  });
+
+  document.getElementById('custom-media-list').appendChild(div);
+}
+
+document.getElementById('add-media-btn').addEventListener('click', () => {
+  renderCustomMediaUI(null);
+  saveCustomMedia();
+  updatePreview();
+});
+
+function saveCustomMedia() {
+  const boxes = document.querySelectorAll('#custom-media-list .custom-item-box');
+  const arr = [];
+  boxes.forEach(box => {
+    arr.push({
+      base64: box.dataset.base64 || "",
+      animation: box.querySelector('.cm-anim').value,
+      x: box.querySelector('.cm-x').value,
+      y: box.querySelector('.cm-y').value,
+      width: box.querySelector('.cm-width').value
+    });
+  });
+  localStorage.setItem('nl_gen_custom_media', JSON.stringify(arr));
+}
+
+function loadCustomMedia() {
+  const saved = localStorage.getItem('nl_gen_custom_media');
+  if (saved) {
+    const arr = JSON.parse(saved);
+    arr.forEach(item => renderCustomMediaUI(item));
+  }
+}
+
+// 一般入力のロードと保存設定
+document.querySelectorAll('.auto-save').forEach(input => {
+  if (localStorage.getItem('nl_gen_' + input.id) !== null) {
+    if (input.type === 'checkbox') input.checked = localStorage.getItem('nl_gen_' + input.id) === 'true';
+    else input.value = localStorage.getItem('nl_gen_' + input.id);
+  }
+  input.addEventListener('input', () => {
+    if (input.type === 'checkbox') localStorage.setItem('nl_gen_' + input.id, input.checked);
+    else localStorage.setItem('nl_gen_' + input.id, input.value);
+    
+    const ev = new Event('input');
+    input.dispatchEvent(ev);
+    updatePreview();
+  });
+  input.addEventListener('change', () => updatePreview());
+});
+
+// 初期化発火
+['bg-type','bg-filter','main-outline','tips-outline','ss-show'].forEach(id => {
+  const el = document.getElementById(id);
+  if(el) el.dispatchEvent(new Event('change'));
+});
+document.querySelectorAll('.font-preset').forEach(s => s.dispatchEvent(new Event('change')));
+loadCustomTexts();
+loadCustomMedia();
+updatePresetDropdown();
+
+// プリセット管理
+function updatePresetDropdown() {
+  const select = document.getElementById('preset-list');
+  select.innerHTML = '<option value="">-- 選択してください --</option>';
+  const presets = JSON.parse(localStorage.getItem('nl_gen_presets') || '{}');
+  Object.keys(presets).forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    select.appendChild(opt);
+  });
+}
+
+document.getElementById('save-preset-btn').addEventListener('click', () => {
+  const name = document.getElementById('new-preset-name').value.trim();
+  if (!name) { alert('プリセット名を入力してください。'); return; }
+  
+  const settings = {};
+  document.querySelectorAll('.auto-save').forEach(input => {
+    settings[input.id] = input.type === 'checkbox' ? input.checked : input.value;
+  });
+  settings['custom_texts'] = localStorage.getItem('nl_gen_custom_texts');
+  settings['custom_media'] = localStorage.getItem('nl_gen_custom_media');
+
+  const presets = JSON.parse(localStorage.getItem('nl_gen_presets') || '{}');
+  presets[name] = settings;
+  localStorage.setItem('nl_gen_presets', JSON.stringify(presets));
+  document.getElementById('new-preset-name').value = '';
+  updatePresetDropdown();
+  alert(`プリセット「${name}」を保存しました！`);
+});
+
+document.getElementById('load-preset-btn').addEventListener('click', () => {
+  const name = document.getElementById('preset-list').value;
+  if (!name) { alert('プリセットを選択してください。'); return; }
+
+  const presets = JSON.parse(localStorage.getItem('nl_gen_presets') || '{}');
+  const settings = presets[name];
+  if (!settings) return;
+
+  Object.keys(settings).forEach(id => {
+    if (id === 'custom_texts') {
+      localStorage.setItem('nl_gen_custom_texts', settings[id]);
+      document.getElementById('custom-text-list').innerHTML = '';
+      loadCustomTexts();
+    } else if (id === 'custom_media') {
+      localStorage.setItem('nl_gen_custom_media', settings[id]);
+      document.getElementById('custom-media-list').innerHTML = '';
+      loadCustomMedia();
+    } else {
+      const input = document.getElementById(id);
+      if (input) {
+        if (input.type === 'checkbox') input.checked = settings[id];
+        else input.value = settings[id];
+        localStorage.setItem('nl_gen_' + id, settings[id]);
+        const ev = new Event('input');
+        input.dispatchEvent(ev);
+      }
+    }
+  });
+  ['bg-type','bg-filter','main-outline','tips-outline','ss-show'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.dispatchEvent(new Event('change'));
+  });
+  document.querySelectorAll('.font-preset').forEach(s => s.dispatchEvent(new Event('change')));
+  updatePreview();
+  alert(`プリセット「${name}」を読み込みました！`);
+});
+
+document.getElementById('del-preset-btn').addEventListener('click', () => {
+  const name = document.getElementById('preset-list').value;
+  if (!name) { alert('削除するプリセットを選択してください。'); return; }
+  if (!confirm(`プリセット「${name}」を削除しますか？`)) return;
+
+  const presets = JSON.parse(localStorage.getItem('nl_gen_presets') || '{}');
+  delete presets[name];
+  localStorage.setItem('nl_gen_presets', JSON.stringify(presets));
+  updatePresetDropdown();
+  alert(`プリセット「${name}」を削除しました。`);
+});
+
+
+// --- HTML組み立てエンジン (1920x1080完全固定対応) ---
+function generateHTMLString() {
+  const bgType = document.getElementById('bg-type').value;
+  const bgColor1 = document.getElementById('bg-color1').value;
+  const bgColor2 = document.getElementById('bg-color2').value;
+  const bgGradDir = document.getElementById('bg-gradient-dir').value;
+  const bgGradPos = document.getElementById('bg-grad-pos').value;
+  
+  const bgImageSize = document.getElementById('bg-image-size').value;
+  const bgSlideSpeed = document.getElementById('bg-slide-speed').value;
+  const bgFilter = document.getElementById('bg-filter').checked;
+  const bgFilterOp = document.getElementById('bg-filter-opacity').value / 100;
+  
+  const mainText = document.getElementById('main-text').value;
+  const mainFont = getFontString('main');
+  const mainColor = document.getElementById('main-color').value;
+  const mainSize = document.getElementById('main-size').value;
+  const mainAnim = document.getElementById('main-animation').value;
+  const mainBold = document.getElementById('main-bold').checked;
+  const mainShadow = document.getElementById('main-shadow').checked;
+  const mainX = document.getElementById('main-x').value;
+  const mainY = document.getElementById('main-y').value;
+  
+  const mainOutline = document.getElementById('main-outline').checked;
+  const mainOutlineSize = document.getElementById('main-outline-size').value;
+  const mainOutlineColor = document.getElementById('main-outline-color').value;
+  
+  const iconShow = document.getElementById('icon-show').checked;
+  const iconType = document.getElementById('icon-type').value;
+  const iconColor = document.getElementById('icon-color').value;
+  const iconSize = document.getElementById('icon-size').value;
+  const iconX = document.getElementById('icon-x').value;
+  const iconY = document.getElementById('icon-y').value;
+  
+  const particleType = document.getElementById('particle-type').value;
+  
+  const tipsShow = document.getElementById('tips-show').checked;
+  const tipsTextRaw = document.getElementById('tips-text').value;
+  const tipsFont = getFontString('tips');
+  const tipsSize = document.getElementById('tips-size').value;
+  const tipsColor = document.getElementById('tips-color').value;
+  const tipsBold = document.getElementById('tips-bold').checked;
+  const tipsShadow = document.getElementById('tips-shadow').checked;
+  const tipsOutline = document.getElementById('tips-outline').checked;
+  const tipsOutlineSize = document.getElementById('tips-outline-size').value;
+  const tipsOutlineColor = document.getElementById('tips-outline-color').value;
+  const tipsArray = tipsTextRaw.split('\n').filter(t => t.trim() !== '');
+
+  const ssShow = document.getElementById('ss-show').checked;
+  const ssSize = document.getElementById('ss-size').value;
+  const ssSpeed = document.getElementById('ss-speed').value;
+  const ssX = document.getElementById('ss-x').value;
+  const ssY = document.getElementById('ss-y').value;
+
+  const customTexts = [];
+  document.querySelectorAll('#custom-text-list .custom-item-box').forEach(box => {
+    const valText = box.querySelector('.ct-val');
+    if (!valText) return; 
+    let pVal = box.querySelector('.ct-font-preset').value;
+    let cVal = box.querySelector('.ct-font-custom').value;
+    let fontStr = pVal === 'custom' ? (cVal ? `'${cVal}', sans-serif` : 'sans-serif') : pVal;
+
+    customTexts.push({
+      text: valText.value.replace(/\n/g, '<br>'),
+      x: box.querySelector('.ct-x').value,
+      y: box.querySelector('.ct-y').value,
+      size: box.querySelector('.ct-size').value,
+      font: fontStr,
+      align: box.querySelector('.ct-align').value,
+      color: box.querySelector('.ct-color').value,
+      bold: box.querySelector('.ct-bold').checked,
+      shadow: box.querySelector('.ct-shadow').checked,
+      outline: box.querySelector('.ct-outline').checked,
+      outlineSize: box.querySelector('.ct-outline-size').value,
+      outlineColor: box.querySelector('.ct-outline-color').value
+    });
+  });
+
+  const customMedia = [];
+  document.querySelectorAll('#custom-media-list .custom-item-box').forEach(box => {
+    const b64 = box.dataset.base64;
+    if (b64) {
+      customMedia.push({
+        base64: b64,
+        animation: box.querySelector('.cm-anim').value,
+        x: box.querySelector('.cm-x').value,
+        y: box.querySelector('.cm-y').value,
+        width: box.querySelector('.cm-width').value
+      });
+    }
+  });
+
+  let html = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Now Loading</title>
+<style>
+  body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background-color: #000; }
+  #scene { width: 1920px; height: 1080px; position: absolute; top: 0; left: 0; transform-origin: top left; overflow: hidden; }
+
+  .bg-base-layer { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; `;
+  
+  if (bgType === 'gradient') {
+    html += `background: linear-gradient(${bgGradDir}, ${bgColor1} ${bgGradPos}%, ${bgColor2} 100%); }\n`;
+  } else {
+    html += `background-color: ${bgColor1}; }\n`;
+  }
+  
+  html += `  .bg-img-layer { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 2; background-size: ${bgImageSize}; background-position: center; background-repeat: no-repeat; transition: opacity 1s ease-in-out; }\n`;
+  
+  if (bgFilter) {
+    html += `  .overlay { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,${bgFilterOp}); z-index: 3; }\n`;
+  }
+
+  let mainOutlineCss = mainOutline ? `-webkit-text-stroke: ${mainOutlineSize}px ${mainOutlineColor}; text-stroke: ${mainOutlineSize}px ${mainOutlineColor};` : '';
+
+  html += `
+  .main-text-container {
+    position: absolute; left: ${mainX}%; top: ${mainY}%; transform: translate(-50%, -50%); z-index: 10;
+    font-family: ${mainFont}; font-size: ${mainSize}px; color: ${mainColor};
+    font-weight: ${mainBold ? 'bold' : 'normal'}; white-space: nowrap;
+    ${mainShadow ? 'text-shadow: 4px 4px 10px rgba(0,0,0,0.8);' : ''}
+    ${mainOutlineCss}
+  }
+  .char { display: inline-block; }
+`;
+
+  if (mainAnim === 'wave') {
+    html += `.char { animation: wave 1.5s infinite ease-in-out; } @keyframes wave { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }\n`;
+  } else if (mainAnim === 'fade') {
+    html += `.char { opacity: 0; animation: fadeIn 2s forwards infinite; } @keyframes fadeIn { 0% { opacity: 0; } 20%, 80% { opacity: 1; } 100% { opacity: 0; } }\n`;
+  } else if (mainAnim === 'slideup') {
+    html += `.char { opacity: 0; transform: translateY(20px); animation: slideUp 2.5s forwards infinite; } @keyframes slideUp { 0% { opacity: 0; transform: translateY(20px); } 20%, 80% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-20px); } }\n`;
+  } else if (mainAnim === 'typewriter') {
+    html += `.char { opacity: 0; animation: typeWriter 3s forwards infinite; } @keyframes typeWriter { 0% { opacity: 0; } 10%, 90% { opacity: 1; } 100% { opacity: 0; } }\n`;
+  }
+
+  if (iconShow) {
+    html += `.loader-wrapper { position: absolute; left: ${iconX}%; top: ${iconY}%; transform: translate(-50%, -50%) scale(${iconSize}); z-index: 10; display: flex; justify-content: center; align-items: center; height: 60px; }\n`;
+    
+    if (iconType === 'fill-bar') {
+      html += `
+  .loader { width: 300px; height: 15px; border: 3px solid ${iconColor}; border-radius: 8px; position: relative; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+  .loader::after { content: ''; position: absolute; top:0; left:0; height: 100%; width: 0%; background: ${iconColor}; animation: fillBar 2.5s ease-out infinite; }
+  @keyframes fillBar { 0% { width: 0%; opacity:1; } 85% { width: 100%; opacity:1; } 95% { opacity:0; } 100% { width:0%; opacity:0; } }
+`;
+    } else if (iconType === 'spinner') {
+      html += `.loader { width: 60px; height: 60px; border: 8px solid rgba(255,255,255,0.2); border-top-color: ${iconColor}; border-radius: 50%; animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }\n`;
+    } else if (iconType === 'dots') {
+      html += `.loader { display: flex; gap: 15px; } .loader div { width: 20px; height: 20px; background: ${iconColor}; border-radius: 50%; animation: dotBounce 1.4s infinite ease-in-out both; } .loader div:nth-child(1) { animation-delay: -0.32s; } .loader div:nth-child(2) { animation-delay: -0.16s; } @keyframes dotBounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }\n`;
+    } else if (iconType === 'wave') {
+      html += `.loader { display: flex; gap: 8px; height: 40px; align-items: center; } .loader div { width: 8px; height: 100%; background: ${iconColor}; animation: waveBar 1.2s infinite ease-in-out; } .loader div:nth-child(1) { animation-delay: -1.2s; } .loader div:nth-child(2) { animation-delay: -1.1s; } .loader div:nth-child(3) { animation-delay: -1.0s; } .loader div:nth-child(4) { animation-delay: -0.9s; } .loader div:nth-child(5) { animation-delay: -0.8s; } @keyframes waveBar { 0%, 40%, 100% { transform: scaleY(0.4); } 20% { transform: scaleY(1); } }\n`;
+    } else if (iconType === 'bar') {
+      html += `.loader { width: 300px; height: 10px; background: rgba(255,255,255,0.2); border-radius: 5px; overflow: hidden; position: relative; } .loader::after { content: ''; position: absolute; top:0; left:0; height: 100%; width: 30%; background: ${iconColor}; border-radius: 5px; animation: progress 2s infinite ease-in-out; } @keyframes progress { 0% { left: -30%; } 100% { left: 100%; } }\n`;
+    }
+  }
+
+  if (tipsShow) {
+    let tipsOutlineCss = tipsOutline ? `-webkit-text-stroke: ${tipsOutlineSize}px ${tipsOutlineColor}; text-stroke: ${tipsOutlineSize}px ${tipsOutlineColor};` : '';
+    let tipsShadowCss = tipsShadow ? 'text-shadow: 2px 2px 8px rgba(0,0,0,0.8);' : '';
+    html += `.tips-container { position: absolute; left: 50%; bottom: 80px; transform: translateX(-50%); width: 100%; text-align: center; font-family: ${tipsFont}; font-size: ${tipsSize}px; color: ${tipsColor}; font-weight: ${tipsBold ? 'bold':'normal'}; ${tipsShadowCss} ${tipsOutlineCss} z-index: 15; } .tip-text { opacity: 0; transition: opacity 1s ease-in-out; display: none; } .tip-text.active { opacity: 1; display: block; }\n`;
+  }
+
+  html += `.ct-layer { position: absolute; z-index: 15; line-height: 1.4; }\n`;
+  
+  /* カスタムメディア(スタンプ) CSS */
+  html += `.cm-wrapper { position: absolute; transform: translate(-50%, -50%); z-index: 6; }\n`;
+  html += `.cm-img { width: 100%; display: block; object-fit: contain; }\n`;
+  
+  html += `.anim-float { animation: cmFloat 3s ease-in-out infinite; }\n`;
+  html += `@keyframes cmFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }\n`;
+  
+  html += `.anim-swing { transform-origin: center center; animation: cmSwing 3s ease-in-out infinite; }\n`;
+  html += `@keyframes cmSwing { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }\n`;
+  
+  html += `.anim-spin { animation: cmSpin 6s linear infinite; }\n`;
+  html += `@keyframes cmSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }\n`;
+  
+  html += `.anim-pulse { animation: cmPulse 2s ease-in-out infinite; }\n`;
+  html += `@keyframes cmPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }\n`;
+
+  html += `.ss-container { position: absolute; transform: translate(-50%, -50%); z-index: 5; }\n`;
+  html += `.ss-img { position: absolute; top:0; left:0; width: 100%; height: 100%; object-fit: contain; transition: opacity 1s ease-in-out; }\n`;
+
+  html += `  #particle-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none; }\n`;
+  html += `</style>\n</head>\n<body>\n`;
+  
+  html += `<div id="scene">\n`;
+  html += `  <div class="bg-base-layer"></div>\n`;
+  
+  if (cachedBgBase64.length > 0) {
+    cachedBgBase64.forEach((b64, i) => {
+      html += `  <div class="bg-img-layer" style="background-image:url('${b64}'); opacity:${i===0 ? 1 : 0};"></div>\n`;
+    });
+  }
+  
+  if (bgFilter) html += `  <div class="overlay"></div>\n`;
+  html += `  <canvas id="particle-canvas"></canvas>\n`;
+
+  // スタンプ・カスタムメディア描画
+  customMedia.forEach(cm => {
+    let animClass = cm.animation !== 'none' ? `anim-${cm.animation}` : '';
+    html += `  <div class="cm-wrapper" style="left: ${cm.x}%; top: ${cm.y}%; width: ${cm.width}px;">\n`;
+    html += `    <img src="${cm.base64}" class="cm-img ${animClass}">\n`;
+    html += `  </div>\n`;
+  });
+
+  if (ssShow && cachedSlideshowBase64.length > 0) {
+    html += `  <div class="ss-container" style="left: ${ssX}%; top: ${ssY}%; width: ${ssSize}px; height: ${ssSize}px;">\n`;
+    cachedSlideshowBase64.forEach((b64, i) => {
+      html += `    <img src="${b64}" class="ss-img" style="opacity: ${i === 0 ? 1 : 0}; position: ${i === 0 ? 'relative' : 'absolute'};">\n`;
+    });
+    html += `  </div>\n`;
+  }
+
+  customTexts.forEach(ct => {
+    let shadowCss = ct.shadow ? 'text-shadow: 2px 2px 6px rgba(0,0,0,0.8);' : '';
+    let boldCss = ct.bold ? 'font-weight: bold;' : 'font-weight: normal;';
+    let ctOutlineCss = ct.outline ? `-webkit-text-stroke: ${ct.outlineSize}px ${ct.outlineColor}; text-stroke: ${ct.outlineSize}px ${ct.outlineColor};` : '';
+    html += `  <div class="ct-layer" style="left: ${ct.x}%; top: ${ct.y}%; font-size: ${ct.size}px; color: ${ct.color}; font-family: ${ct.font}; text-align: ${ct.align}; ${boldCss} ${shadowCss} ${ctOutlineCss}">${ct.text}</div>\n`;
+  });
+
+  html += `  <div class="main-text-container" id="main-text">\n`;
+  const chars = Array.from(mainText);
+  let delayStep = mainAnim === 'typewriter' ? 0.15 : 0.1;
+  chars.forEach((char, index) => {
+    if (char === ' ') char = '&nbsp;';
+    html += `    <span class="char" style="animation-delay: ${index * delayStep}s">${char}</span>\n`;
+  });
+  html += `  </div>\n`;
+
+  if (iconShow) {
+    html += `  <div class="loader-wrapper"><div class="loader">`;
+    if (iconType === 'dots') html += `<div></div><div></div><div></div>`;
+    else if (iconType === 'wave') html += `<div></div><div></div><div></div><div></div><div></div>`;
+    html += `</div></div>\n`;
+  }
+
+  if (tipsShow && tipsArray.length > 0) {
+    html += `  <div class="tips-container" id="tips-container">\n`;
+    tipsArray.forEach((tip, i) => {
+      html += `    <div class="tip-text ${i === 0 ? 'active' : ''}">${tip}</div>\n`;
+    });
+    html += `  </div>\n`;
+  }
+
+  html += `</div>\n`;
+
+  html += `<script>\n`;
+  html += `
+  function scaleToFit() {
+    const scene = document.getElementById('scene');
+    const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    scene.style.transform = 'scale(' + scale + ')';
+    const leftOffset = (window.innerWidth - (1920 * scale)) / 2;
+    const topOffset = (window.innerHeight - (1080 * scale)) / 2;
+    scene.style.left = leftOffset + 'px';
+    scene.style.top = topOffset + 'px';
+  }
+  window.addEventListener('resize', scaleToFit);
+  scaleToFit();
+  `;
+
+  if (tipsShow && tipsArray.length > 1) {
+    html += `
+  const tips = document.querySelectorAll('.tip-text');
+  let currentTip = 0;
+  setInterval(() => {
+    tips[currentTip].classList.remove('active');
+    setTimeout(() => {
+      currentTip = (currentTip + 1) % tips.length;
+      tips[currentTip].classList.add('active');
+    }, 1000); 
+  }, 6000); 
+`;
+  }
+  
+  if (cachedBgBase64.length > 1) {
+    html += `
+  const bgImgs = document.querySelectorAll('.bg-img-layer');
+  let bgIndex = 0;
+  setInterval(() => {
+    bgImgs[bgIndex].style.opacity = 0;
+    bgIndex = (bgIndex + 1) % bgImgs.length;
+    bgImgs[bgIndex].style.opacity = 1;
+  }, ${bgSlideSpeed} * 1000);
+`;
+  }
+
+  if (ssShow && cachedSlideshowBase64.length > 1) {
+    html += `
+  const ssImgs = document.querySelectorAll('.ss-img');
+  let ssIndex = 0;
+  setInterval(() => {
+    ssImgs[ssIndex].style.opacity = 0;
+    ssIndex = (ssIndex + 1) % ssImgs.length;
+    ssImgs[ssIndex].style.opacity = 1;
+  }, ${ssSpeed} * 1000);
+`;
+  }
+
+  if (particleType !== 'none') {
+    html += `
+  const pCanvas = document.getElementById('particle-canvas');
+  const pCtx = pCanvas.getContext('2d');
+  pCanvas.width = 1920; pCanvas.height = 1080;
+  const particles = [];
+  const type = '${particleType}';
+  const particleCount = type === 'snow' ? 150 : 50;
+
+  class Particle {
+    constructor() { this.reset(true); }
+    reset(initial = false) {
+      this.x = Math.random() * pCanvas.width;
+      this.y = initial ? Math.random() * pCanvas.height : -50;
+      this.size = Math.random() * (type === 'snow' ? 4 : 15) + 5;
+      this.speedY = Math.random() * 1.5 + 0.5;
+      this.speedX = Math.random() * 2 - 1;
+      this.angle = Math.random() * 360;
+      this.spin = Math.random() * 2 - 1;
+      
+      if(type === 'sakura') { this.color = 'rgba(255, 183, 197, 0.8)'; }
+      else if(type === 'natsutsubaki') { this.color = 'rgba(144, 238, 144, 0.8)'; }
+      else if(type === 'kinmokusei') { this.color = 'rgba(255, 165, 0, 0.9)'; this.size = Math.random() * 4 + 3; }
+      else if(type === 'cosmos') { this.color = Math.random() > 0.5 ? 'rgba(219, 112, 147, 0.8)' : 'rgba(255, 182, 193, 0.8)'; }
+      else if(type === 'snow') { this.color = 'rgba(255, 255, 255, 0.8)'; }
+    }
+    update() {
+      this.y += this.speedY;
+      this.x += this.speedX + Math.sin(this.y / 100);
+      this.angle += this.spin;
+      if (this.y > pCanvas.height + 50 || this.x < -50 || this.x > pCanvas.width + 50) this.reset();
+    }
+    draw() {
+      pCtx.save();
+      pCtx.translate(this.x, this.y);
+      pCtx.rotate(this.angle * Math.PI / 180);
+      pCtx.fillStyle = this.color;
+      if (type === 'snow' || type === 'kinmokusei') {
+        pCtx.beginPath(); pCtx.arc(0, 0, this.size, 0, Math.PI*2); pCtx.fill();
+      } else {
+        pCtx.beginPath(); pCtx.ellipse(0, 0, this.size/2, this.size, 0, 0, Math.PI*2); pCtx.fill();
+      }
+      pCtx.restore();
+    }
+  }
+  for(let i=0; i<particleCount; i++) particles.push(new Particle());
+  function animateParticles() {
+    pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+    particles.forEach(p => { p.update(); p.draw(); });
+    requestAnimationFrame(animateParticles);
+  }
+  animateParticles();
+`;
+  }
+
+  html += '<' + '/script>\n</body>\n</html>';
+  return html;
+}
+
+let previewTimeout;
+function updatePreview() {
+  clearTimeout(previewTimeout);
+  previewTimeout = setTimeout(() => {
+    const html = generateHTMLString();
+    document.getElementById('preview-frame').srcdoc = html;
+  }, 100); 
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  updatePreview();
+});
+
+document.getElementById('generate-btn').addEventListener('click', () => {
+  const html = generateHTMLString();
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'now_loading_custom.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+</script>
+
+</body>
+</html>
