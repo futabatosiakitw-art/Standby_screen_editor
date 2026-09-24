@@ -109,7 +109,7 @@
     
     <!-- 0. プリセット保存・切替機能 -->
     <div class="section" style="border-left-color: #28a745;">
-      <div class="section-title" style="color: #28a745;">0. 設定プリセット管理</div>
+      <div class="section-title" style="color: #28a745;">0. 設定管理 / プリセット</div>
       <div class="flex-row">
         <div>
           <label>保存済みプリセット</label>
@@ -128,6 +128,11 @@
         <div style="padding-top:20px;">
           <button type="button" class="preset-btn" id="save-preset-btn" style="background:#28a745;">現在の設定を保存</button>
         </div>
+      </div>
+      
+      <!-- ★追加：すべて初期化ボタン -->
+      <div style="margin-top: 15px; border-top: 1px dashed #666; padding-top: 15px; text-align: right;">
+        <button type="button" class="preset-btn" id="reset-default-btn" style="background:#ffc107; color:#000; font-weight:bold;">⚠️ すべて初期化 (デフォルトに戻す)</button>
       </div>
     </div>
 
@@ -440,6 +445,24 @@ document.getElementById('tips-outline').addEventListener('change', (e) => {
 
 document.getElementById('ss-show').addEventListener('change', (e) => {
   document.getElementById('ss-settings').style.display = e.target.checked ? 'block' : 'none';
+});
+
+// ★追加：すべて初期化ボタンの処理
+document.getElementById('reset-default-btn').addEventListener('click', () => {
+  if (!confirm('現在の設定をすべて初期状態（デフォルト）に戻しますか？\\n※保存済みのプリセットは消えません。')) return;
+  
+  // プリセット(nl_gen_presets)以外のLocal Storageキーを削除
+  const keysToRemove = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('nl_gen_') && key !== 'nl_gen_presets') {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach(k => localStorage.removeItem(k));
+  
+  // ページをリロードして完全初期状態に戻す
+  location.reload();
 });
 
 function getFontString(prefix) {
