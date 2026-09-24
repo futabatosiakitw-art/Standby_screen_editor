@@ -92,7 +92,7 @@
       </ol>
     </div>
 
-    <!-- 追加：広告・プロモーションエリア -->
+    <!-- 広告・プロモーションエリア -->
     <div class="promo-section">
       <a href="https://twitter.com/futaba_to_siaki" target="_blank" class="promo-banner">
         <img src="banner.png" alt="フタバとシアキの工房">
@@ -359,12 +359,20 @@
     <!-- 8. ランダムTips -->
     <div class="section" style="margin-bottom: 0;">
       <div class="section-title">8. ランダムTips (定期的に切り替わる一言)</div>
-      <label class="checkbox-wrap"><input type="checkbox" id="tips-show" class="auto-save" checked> Tipsを表示する (画面下部中央)</label>
+      <label class="checkbox-wrap"><input type="checkbox" id="tips-show" class="auto-save" checked> Tipsを表示する</label>
       <textarea id="tips-text" rows="4" class="auto-save">※プレイ時は部屋を明るくして画面から離れてください。
 ※お茶でも飲んでリラックスしてお待ちください。
 ※初見さん、コメント大歓迎です！</textarea>
       
-      <div class="flex-row">
+      <div class="sub-panel">
+        <div class="flex-row">
+          <div><label>X座標(中央基準) <span id="val-tips-x" class="slider-val-label">50%</span></label><input type="range" id="tips-x" min="0" max="100" value="50" class="auto-save" oninput="document.getElementById('val-tips-x').textContent = this.value + '%'"></div>
+          <div><label>Y座標(中央基準) <span id="val-tips-y" class="slider-val-label">90%</span></label><input type="range" id="tips-y" min="0" max="100" value="90" class="auto-save" oninput="document.getElementById('val-tips-y').textContent = this.value + '%'"></div>
+          <div><label>表示幅(px) <span id="val-tips-w" class="slider-val-label">1200px</span></label><input type="range" id="tips-w" min="300" max="1920" value="1200" class="auto-save" oninput="document.getElementById('val-tips-w').textContent = this.value + 'px'"></div>
+        </div>
+      </div>
+
+      <div class="flex-row" style="margin-top:10px;">
         <div>
           <label>フォント指定</label>
           <select id="tips-font-preset" class="auto-save font-preset" data-target="tips-font-custom">
@@ -820,6 +828,9 @@ function generateHTMLString() {
   const particleType = document.getElementById('particle-type').value;
   
   const tipsShow = document.getElementById('tips-show').checked;
+  const tipsX = document.getElementById('tips-x').value;
+  const tipsY = document.getElementById('tips-y').value;
+  const tipsW = document.getElementById('tips-w').value;
   const tipsTextRaw = document.getElementById('tips-text').value;
   const tipsFont = getFontString('tips');
   const tipsSize = document.getElementById('tips-size').value;
@@ -944,7 +955,11 @@ function generateHTMLString() {
   if (tipsShow) {
     let tipsOutlineCss = tipsOutline ? `-webkit-text-stroke: ${tipsOutlineSize}px ${tipsOutlineColor}; text-stroke: ${tipsOutlineSize}px ${tipsOutlineColor};` : '';
     let tipsShadowCss = tipsShadow ? 'text-shadow: 2px 2px 8px rgba(0,0,0,0.8);' : '';
-    html += `.tips-container { position: absolute; left: 50%; bottom: 80px; transform: translateX(-50%); width: 100%; text-align: center; font-family: ${tipsFont}; font-size: ${tipsSize}px; color: ${tipsColor}; font-weight: ${tipsBold ? 'bold':'normal'}; ${tipsShadowCss} ${tipsOutlineCss} z-index: 15; } .tip-text { opacity: 0; transition: opacity 1s ease-in-out; display: none; } .tip-text.active { opacity: 1; display: block; }\n`;
+    html += `
+    .tips-container { position: absolute; left: ${tipsX}%; top: ${tipsY}%; transform: translate(-50%, -50%); width: ${tipsW}px; display: flex; justify-content: center; align-items: center; text-align: center; font-family: ${tipsFont}; font-size: ${tipsSize}px; color: ${tipsColor}; font-weight: ${tipsBold ? 'bold':'normal'}; ${tipsShadowCss} ${tipsOutlineCss} z-index: 15; }
+    .tip-text { position: absolute; width: 100%; opacity: 0; transition: opacity 1s ease-in-out; pointer-events: none; }
+    .tip-text.active { opacity: 1; }
+    \n`;
   }
 
   html += `.ct-layer { position: absolute; z-index: 15; line-height: 1.4; }\n`;
