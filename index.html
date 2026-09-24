@@ -130,7 +130,7 @@
         </div>
       </div>
       
-      <!-- ★追加：すべて初期化ボタン -->
+      <!-- すべて初期化ボタン -->
       <div style="margin-top: 15px; border-top: 1px dashed #666; padding-top: 15px; text-align: right;">
         <button type="button" class="preset-btn" id="reset-default-btn" style="background:#ffc107; color:#000; font-weight:bold;">⚠️ すべて初期化 (デフォルトに戻す)</button>
       </div>
@@ -447,11 +447,11 @@ document.getElementById('ss-show').addEventListener('change', (e) => {
   document.getElementById('ss-settings').style.display = e.target.checked ? 'block' : 'none';
 });
 
-// ★追加：すべて初期化ボタンの処理
+// ★ブラウザのキャッシュを無視して強制的に完全初期化する処理に変更
 document.getElementById('reset-default-btn').addEventListener('click', () => {
   if (!confirm('現在の設定をすべて初期状態（デフォルト）に戻しますか？\\n※保存済みのプリセットは消えません。')) return;
-  
-  // プリセット(nl_gen_presets)以外のLocal Storageキーを削除
+
+  // 1. LocalStorageに保存されている自動保存データを削除
   const keysToRemove = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
@@ -460,9 +460,43 @@ document.getElementById('reset-default-btn').addEventListener('click', () => {
     }
   }
   keysToRemove.forEach(k => localStorage.removeItem(k));
-  
-  // ページをリロードして完全初期状態に戻す
-  location.reload();
+
+  // 2. ブラウザのキャッシュ対策：DOMの入力欄をHTML本来の初期値へ強制上書き
+  document.querySelectorAll('.auto-save').forEach(input => {
+    if (input.type === 'checkbox' || input.type === 'radio') {
+      input.checked = input.defaultChecked;
+    } else if (input.tagName === 'SELECT') {
+      const defaultOpt = Array.from(input.options).find(opt => opt.defaultSelected);
+      input.value = defaultOpt ? defaultOpt.value : input.options[0].value;
+    } else {
+      input.value = input.defaultValue;
+    }
+  });
+
+  // 3. ユーザーが追加したテキストや画像（スタンプなど）のエリアを空にする
+  document.getElementById('custom-text-list').innerHTML = '';
+  document.getElementById('custom-media-list').innerHTML = '';
+  cachedBgBase64 = [];
+  cachedSlideshowBase64 = [];
+  document.getElementById('bg-image').value = '';
+  document.getElementById('ss-files').value = '';
+  document.getElementById('new-preset-name').value = '';
+  document.getElementById('preset-list').value = '';
+
+  // 4. UIの表示連動（グラデーション設定枠の開閉など）をリセット
+  ['bg-type','bg-filter','main-outline','tips-outline','ss-show'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  document.querySelectorAll('.font-preset').forEach(s => s.dispatchEvent(new Event('change', { bubbles: true })));
+
+  // 5. 各値のスライダー横のラベル（%やpxなど）の文字を更新＆強制保存発火
+  document.querySelectorAll('.auto-save').forEach(input => {
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
+  updatePreview();
+  alert('すべて初期状態にリセットしました！');
 });
 
 function getFontString(prefix) {
