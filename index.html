@@ -52,6 +52,14 @@
     .slider-val-label { font-size: 0.8rem; color: #f1c40f; display: inline-block; width: 45px; text-align: right; }
     .sub-panel { background: #2a2a2a; padding: 10px 15px; border-radius: 4px; margin-bottom: 10px; border: 1px solid #555; }
 
+    /* 広告・プロモーションエリア用CSS */
+    .promo-section { margin-top: 15px; background: #2a2a2a; border-radius: 6px; padding: 12px; text-align: center; border: 1px solid #444; }
+    .promo-banner { display: block; border-radius: 4px; overflow: hidden; margin-bottom: 10px; }
+    .promo-banner img { width: 100%; height: auto; display: block; transition: transform 0.2s ease, opacity 0.2s ease; }
+    .promo-banner:hover img { opacity: 0.85; transform: scale(1.02); }
+    .twitter-link { display: inline-block; color: #e7e9ea; text-decoration: none; font-size: 0.85rem; font-weight: bold; background: #000; padding: 6px 16px; border-radius: 20px; border: 1px solid #333; transition: all 0.2s; }
+    .twitter-link:hover { background: #1d9bf0; color: #fff; border-color: #1d9bf0; }
+
     @media (max-width: 1000px) {
       .main-layout { flex-direction: column; }
       .left-pane { position: static; width: 100%; }
@@ -83,6 +91,17 @@
         <li><b>幅 <code>1920</code>、高さ <code>1080</code></b> にして「OK」で完了！</li>
       </ol>
     </div>
+
+    <!-- 追加：広告・プロモーションエリア -->
+    <div class="promo-section">
+      <a href="https://twitter.com/futaba_to_siaki" target="_blank" class="promo-banner">
+        <img src="banner.png" alt="フタバとシアキの工房">
+      </a>
+      <a href="https://twitter.com/futaba_to_siaki" target="_blank" class="twitter-link">
+        これ置いた人の𝕏
+      </a>
+    </div>
+
   </div>
 
   <!-- 右側：設定パネル -->
